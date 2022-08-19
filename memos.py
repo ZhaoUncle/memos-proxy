@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 from flask import Flask
 from flask import request
 import hashlib
@@ -37,15 +39,20 @@ def wexin():
         else:
             return ""
     else:
-        xml = ET.fromstring(request.data)        
+        xml = ET.fromstring(request.data)      
         toUser = xml.find('ToUserName').text
         fromUser = xml.find('FromUserName').text
         msgType = xml.find("MsgType").text
         createTime = xml.find("CreateTime")
+        if con.get('prod', 'wechat_open_id') == "all":
+            pass
+        elif str(fromUser) not in con.get('prod', 'wechat_open_id'):
+            print("该用户的微信 openid 是【 %s 】，如果你允许该用户访问 memos，要记得写入 config.ini 配置文件才行" %(fromUser),flush=True)
+            return reply_text(fromUser, toUser, "该用户没有权限")
+        
         if msgType == "text":
             content = xml.find('Content').text
             memos_reponse_id = memos_post_api(content)
-            print(content)
             if len(str(memos_reponse_id)) != "":
                 return reply_text(fromUser, toUser, "%s") %(con.get('prod', 'messages_success'))
             else:
