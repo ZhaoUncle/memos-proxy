@@ -8,7 +8,8 @@ import json
 import time
 import requests
 import configparser
-
+import urllib.request
+import os
 file = 'config.ini'
 con = configparser.ConfigParser()
 con.read(file, encoding='utf-8')
@@ -39,7 +40,8 @@ def wexin():
         else:
             return ""
     else:
-        xml = ET.fromstring(request.data)      
+        xml = ET.fromstring(request.data)     
+
         toUser = xml.find('ToUserName').text
         fromUser = xml.find('FromUserName').text
         msgType = xml.find("MsgType").text
@@ -57,6 +59,18 @@ def wexin():
                 return reply_text(fromUser, toUser, "%s") %(con.get('prod', 'messages_success'))
             else:
                 return reply_text(fromUser, toUser, "%s").format(con.get('prod', 'messages_failed'))
+        elif msgType == "image":
+            content1 = xml.find('PicUrl').text
+            content2 = xml.find('MediaId').text
+            img_name, img_path = wechat_image(content1,content2)
+            id,filename = memos_post_file_api(img_name, img_path)
+            image_content = "![](/h/r/%s/%s)" % (id,filename)
+            memos_reponse_id = memos_post_api(image_content)
+            if len(str(memos_reponse_id)) != "":
+                return reply_text(fromUser, toUser, "%s") %(con.get('prod', 'messages_success'))
+            else:
+                return reply_text(fromUser, toUser, "%s").format(con.get('prod', 'messages_failed'))
+
         else:
             return reply_text(fromUser, toUser, "微信公众号连接出问题了")
 
@@ -64,7 +78,8 @@ def memos_post_api(content):
     """
     这个函数是把微信公众号用户的提交信息推送到memos，然后返回提交id。
     """
-    url =  con.get('prod', 'memos_url')
+    url =  con.get('prod', 'memos_url') + "/api/memo?openId=" + con.get('prod', 'memos_openid')
+
     payload = json.dumps({
         "content": "%s" %(content)
     })
@@ -89,6 +104,42 @@ def reply_text(to_user, from_user, content):
     </xml>
     """.format(to_user, from_user,int(time.time() * 1000), content)
 
+def wechat_image(picurl,mediaId):
+    if not os.path.exists("./resource"):
+        os.makedirs("./resource")
+
+    img_name = "%s.png" % (mediaId)
+    img_path =  "./resource/%s.png" % (mediaId)
+
+    i_response = urllib.request.urlopen(picurl)
+    img = i_response.read()
+    
+    with open(img_path,'wb') as f:
+        f.write(img)
+    return img_name, img_path
+
+
+def memos_post_file_api(file_name,file_path):
+    url =  con.get('prod', 'memos_url') + "/api/resource?openId=" +  con.get('prod', 'memos_openid')
+    payload={}
+    files=[
+        ('file', (file_name, open(file_path ,'rb'),'image/png'))
+    ]
+    headers = {}
+
+    response = requests.request("POST", url, headers=headers, data=payload, files=files)
+
+    del_local_file(file_path) 
+    res_json = json.loads(response.text)
+    return res_json ["data"]["id"],res_json ["data"]["filename"]
+
+def del_local_file(file_path):
+    files_del = con.get('prod', 'files_del')
+    if files_del == "yes":
+        print("临时缓存图片 %s 已经删除"%(file_path) )
+        os.remove(file_path)
+    else:
+        pass
 
 if __name__ == "__main__":
     host = con.get('prod', 'flask_host')
