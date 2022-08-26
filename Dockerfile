@@ -3,7 +3,7 @@ FROM python:3.6.8-alpine
 RUN mkdir /app
 COPY memos.py /app 
 COPY requirements.txt /app
-COPY config_demo.ini /app
+COPY config_demo.ini /app/config.ini
 RUN pip install -r /app/requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 WORKDIR /app
 
