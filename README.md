@@ -5,6 +5,8 @@
 
 
 # 启动
+
+## 0. 先改配置文件在启动： `mv config_demo.ini config.ini`
 ## 1. docker
 ```
 docker run -d -p 5000:5000  -v "/data/go/memos-proxy/config.ini:/app/config.ini" --name memos-proxy zhaoweiping/memos-proxy
